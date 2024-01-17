@@ -16,25 +16,20 @@ class PaymentService {
         this.dateTimeProvider = dateTimeProvider;
     }
 
-    private static int paymentsDateComparator(Payment p1, Payment p2) {
-        return p1.getPaymentDate().compareTo(p2.getPaymentDate());
+    public static class PaymentDateComparator implements Comparator<Payment> {
+        @Override
+        public int compare(Payment p1, Payment p2) {
+            return p1.getPaymentDate().compareTo(p2.getPaymentDate());
+        }
     }
-
-    private static int paymentsItemComparator(Payment payment) {
-        return payment.getPaymentItems().size();
-    }
-
-    private static boolean getPaymentsWithOneItem(Payment payment) {
-        return payment.getPaymentItems().size() == 1;
-    }
-
     /*
     Znajdź i zwróć płatności posortowane po dacie rosnąco
      */
+
     List<Payment> findPaymentsSortedByDateAsc() {
         List<Payment> allPayments = paymentRepository.findAll();
         return allPayments.stream()
-                .sorted(PaymentService::paymentsDateComparator)
+                .sorted(new PaymentDateComparator())
                 .toList();
     }
 
@@ -42,11 +37,10 @@ class PaymentService {
     Znajdź i zwróć płatności posortowane po dacie malejąco
      */
     List<Payment> findPaymentsSortedByDateDesc() {
-        List<Payment> paymentsSortedByDateAsc = findPaymentsSortedByDateAsc();
-        List<Payment> reversedList = new ArrayList<>(paymentsSortedByDateAsc);
-        Collections.reverse(reversedList);
-        return reversedList;
-
+        List<Payment> payments = paymentRepository.findAll();
+        return payments.stream()
+                .sorted(new PaymentDateComparator().reversed())
+                .toList();
     }
     /*
     Znajdź i zwróć płatności posortowane po liczbie elementów rosnąco
@@ -55,7 +49,7 @@ class PaymentService {
     List<Payment> findPaymentsSortedByItemCountAsc() {
         List<Payment> payments = paymentRepository.findAll();
         return payments.stream()
-                .sorted(Comparator.comparingInt(PaymentService::paymentsItemComparator))
+                .sorted(Comparator.comparingInt(Payment::getPaymentItemsSize))
                 .toList();
 
     }
@@ -84,10 +78,7 @@ class PaymentService {
     Znajdź i zwróć płatności dla aktualnego miesiąca
      */
     List<Payment> findPaymentsForCurrentMonth() {
-        List<Payment> payments = paymentRepository.findAll();
-        return payments.stream()
-                .filter(payment -> YearMonth.from(payment.getPaymentDate()).equals(dateTimeProvider.yearMonthNow()))
-                .toList();
+        return findPaymentsForGivenMonth(dateTimeProvider.yearMonthNow());
     }
 
     /*
@@ -96,7 +87,6 @@ class PaymentService {
     List<Payment> findPaymentsForGivenLastDays(int days) {
         List<Payment> payments = paymentRepository.findAll();
         return payments.stream()
-                .filter(payment -> payment.getPaymentDate().isBefore(dateTimeProvider.zonedDateTimeNow()))
                 .filter(payment -> payment.getPaymentDate().isAfter(dateTimeProvider.zonedDateTimeNow().minusDays(days)))
                 .toList();
     }
@@ -107,7 +97,7 @@ class PaymentService {
     Set<Payment> findPaymentsWithOnePaymentItem() {
         List<Payment> payments = paymentRepository.findAll();
         return payments.stream()
-                .filter(PaymentService::getPaymentsWithOneItem)
+                .filter(Payment::isPaymentsWithOneItem)
                 .collect(Collectors.toSet());
     }
 
@@ -165,14 +155,8 @@ class PaymentService {
     Set<Payment> findPaymentsWithValueOver(int value) {
         List<Payment> payments = paymentRepository.findAll();
         return payments.stream()
-                .filter(payment -> calculatePaymentTotalPrice(payment).compareTo(BigDecimal.valueOf(value)) > 0)
+                .filter(payment -> payment.getTotalPrice().compareTo(BigDecimal.valueOf(value)) > 0)
                 .collect(Collectors.toSet());
-    }
-
-    private BigDecimal calculatePaymentTotalPrice(Payment payment) {
-        return payment.getPaymentItems().stream()
-                .map(PaymentItem::getFinalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
 }
