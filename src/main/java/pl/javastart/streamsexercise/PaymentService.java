@@ -22,6 +22,13 @@ class PaymentService {
             return p1.getPaymentDate().compareTo(p2.getPaymentDate());
         }
     }
+    
+    public static class PaymentItemsComparator implements Comparator<Payment> {
+        @Override
+        public int compare(Payment p1, Payment p2) {
+            return Integer.compare(p1.getPaymentItemsSize(), p2.getPaymentItemsSize());
+        }
+    }
     /*
     Znajdź i zwróć płatności posortowane po dacie rosnąco
      */
@@ -49,19 +56,18 @@ class PaymentService {
     List<Payment> findPaymentsSortedByItemCountAsc() {
         List<Payment> payments = paymentRepository.findAll();
         return payments.stream()
-                .sorted(Comparator.comparingInt(Payment::getPaymentItemsSize))
+                .sorted(new PaymentItemsComparator())
                 .toList();
-
     }
 
     /*
     Znajdź i zwróć płatności posortowane po liczbie elementów malejąco
      */
     List<Payment> findPaymentsSortedByItemCountDesc() {
-        List<Payment> paymentsSortedByItemCountAsc = findPaymentsSortedByItemCountAsc();
-        List<Payment> reversedList = new ArrayList<>(paymentsSortedByItemCountAsc);
-        Collections.reverse(reversedList);
-        return reversedList;
+        List<Payment> payments = paymentRepository.findAll();
+        return payments.stream()
+                .sorted(new PaymentItemsComparator().reversed())
+                .toList();
     }
 
     /*
